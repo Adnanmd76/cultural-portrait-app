@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cultural Portrait Fusion</title>
+    <link rel="stylesheet" href="index.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "@google/genai": "https://esm.run/@google/genai"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <header class="app-header">
+      <h1>Cultural Portrait Fusion</h1>
+      <p>
+        Transform your portrait into a masterpiece of cultural art and
+        calligraphy.
+      </p>
+    </header>
+
+    <main class="container">
+      <div class="controls-panel" aria-labelledby="controls-heading">
+        <h2 id="controls-heading">Create Your Artwork</h2>
+
+        <div class="upload-section">
+          <label for="image-upload" id="upload-label" class="upload-label">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            <span>Click or drag to upload portrait</span>
+          </label>
+          <input
+            type="file"
+            id="image-upload"
+            accept="image/*"
+            aria-label="Upload your portrait"
+            hidden
+          />
+          <div
+            id="image-preview-container"
+            class="image-preview-container"
+            style="display: none"
+          >
+            <img id="image-preview" src="#" alt="Your uploaded portrait" />
+            <button
+              id="remove-image-btn"
+              title="Remove Image"
+              aria-label="Remove uploaded image"
+            >
+              &times;
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="theme-select">Cultural Theme</label>
+          <div class="select-wrapper">
+            <select id="theme-select" aria-label="Select a cultural theme"></select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="phrase-select">Calligraphy Phrase</label>
+          <div class="select-wrapper">
+            <select
+              id="phrase-select"
+              aria-label="Select a calligraphy phrase"
+            ></select>
+          </div>
+        </div>
+
+        <button id="generate-btn" disabled>
+          <i class="fa-solid fa-wand-magic-sparkles"></i>
+          Generate Artwork
+        </button>
+      </div>
+
+      <div class="output-panel" aria-live="polite">
+        <div id="output-placeholder" class="output-placeholder">
+          <i class="fa-solid fa-palette"></i>
+          <p>Your generated artwork will appear here</p>
+        </div>
+        <div
+          id="loading-indicator"
+          class="loading-indicator"
+          style="display: none"
+          role="status"
+        >
+          <div class="spinner"></div>
+          <p id="loading-text">Generating your masterpiece...</p>
+        </div>
+        <figure
+          id="result-container"
+          class="result-container"
+          style="display: none"
+        >
+          <img id="result-image" src="" alt="Generated artwork" />
+          <figcaption
+            id="result-caption"
+            class="caption"
+          ></figcaption>
+        </figure>
+        <div
+          id="error-container"
+          class="error-container"
+          style="display: none"
+          role="alert"
+        >
+          <i class="fa-solid fa-circle-exclamation"></i>
+          <p id="error-message"></p>
+        </div>
+      </div>
+    </main>
+
+    <script type="module" src="/index.tsx"></script>
+  </body>
+            </html>
