@@ -1,0 +1,6 @@
+{
+  "name": "Cultural Portrait Fusion",
+  "description": "Transform a portrait into a culturally inspired artwork blending South Asian and Middle Eastern aesthetics with elegant calligraphy using the Gemini API.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
