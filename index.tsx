@@ -1,341 +1,452 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
+import { GoogleGenAI, Modality, Part } from "@google/genai";
 
-import { GoogleGenAI, Modality } from '@google/genai';
+// 1. API Key Setup
+const apiKey = process.env.API_KEY;
+if (!apiKey) {
+    throw new Error("API_KEY environment variable is not set. Please configure it in your environment.");
+}
+const ai = new GoogleGenAI({ apiKey });
 
+// 2. Constants and Data
 const THEMES = [
-  {
-    name: 'Mughal',
-    description:
-      "A style flourishing under the Mughal Empire (16th-19th century), renowned for its detailed miniature paintings. Key elements include intricate 'hashiya' (floral borders), realistic portraiture often in profile, and lavish court or hunting scenes. The technique involves fine, delicate brushwork on wasli paper. The palette is rich with mineral- and vegetable-based pigments, featuring jewel tones like emerald green, ruby red, lapis lazuli blue, and opulent gold leaf for highlights.",
-  },
-  {
-    name: 'Sufi',
-    description:
-      "An artistic expression of Islamic mysticism, focused on spirituality and introspection. This style utilizes ethereal ink and watercolor washes, creating soft, dreamlike textures. Symbolism is key, often featuring whirling dervishes, the 'al-nur' (divine light), and abstract calligraphic forms of sacred names. The palette is muted and contemplative—dominated by creams, earthy browns, soft celestial blues, and subtle gold accents to evoke a sense of inner peace and divine connection.",
-  },
-  {
-    name: 'Sindhi',
-    description:
-      'Rooted in the ancient traditions of the Indus Valley Civilization, this theme is characterized by Ajrak, a unique form of block-printing. It involves a detailed 16-step process of washing, printing, and dyeing. Motifs are complex, symmetrical geometric patterns and stellar shapes. The color palette is strictly traditional, dominated by deep indigo blue (representing the night sky) and madder red (representing the earth and fire), with black and white creating sharp, graphic contrasts.',
-  },
-  {
-    name: 'Pashtun',
-    description:
-      "A style that reflects the rugged, resilient, and proud heritage of the Pashtun tribes of Afghanistan and Pakistan. It draws heavily from tribal arts, particularly the bold, geometric patterns found in 'gilam' carpets and vibrant 'khamak' embroidery. Designs are often angular and symbolic, telling stories of tribe and family. The palette is warm and earthy, consisting of terracotta, ochre, deep crimson reds, and charcoal black, reflecting the mountainous landscapes and a deep connection to the land.",
-  },
-  {
-    name: 'Balochi',
-    description:
-      "Celebrates the incredibly intricate and vibrant needlework of Balochistan. This style is defined by dense, geometric embroidery that covers entire garments. A key feature is 'shisha-dozi' (mirror work), where small mirrors are stitched into the fabric to ward off the evil eye and reflect the desert sun. The palette is a vivid explosion of primary colors—bright reds, yellows, oranges, and greens—often set against a black or deep-hued background, creating a dazzling contrast that mirrors the beauty and harshness of the desert landscape.",
-  },
-  {
-    name: 'Turkish',
-    description:
-      "Drawing from the artistic golden age of the Ottoman Empire, this theme features the elegance of Iznik tile patterns, characterized by stylized tulips, carnations, and pomegranates. It incorporates sophisticated 'Diwani' or 'Tughra' calligraphy, often with flowing, interlaced letters. The art of 'Ebru' (paper marbling) can also be a textural element. The color palette is regal and striking, dominated by cobalt blue, turquoise, emerald green, and regal reds, with intricate details often highlighted in gold leaf.",
-  },
+    "South Asian", "Middle Eastern", "Japanese Ukiyo-e", "Chinese Ink Wash",
+    "Persian Miniature", "Art Nouveau", "Cyberpunk",
+];
+const PHRASES = {
+    "Love": "Love", "Peace": "Peace", "Hope": "Hope", "Wisdom": "Wisdom",
+    "Courage": "Courage", "Custom...": "custom",
+};
+const CREATIVE_PROMPTS = [
+    { id: 'mughal-fusion', title: 'Mughal Miniature Fusion', description: 'Blends intricate Mughal details with elegant Arabic calligraphy.', getPrompt: (phrase: string) => `Transform the portrait into a masterpiece fusing Mughal miniature aesthetics with the person's features. Use rich, detailed patterns and a vibrant color palette typical of the Mughal era. Artistically integrate the phrase "${phrase}" in elegant Arabic calligraphy, weaving it into the composition's background or attire.` },
+    { id: 'ukiyo-e-modern', title: 'Modern Ukiyo-e', description: 'A modern take on Japanese woodblock prints with stylized lines.', getPrompt: (phrase: string) => `Reimagine the provided portrait in a modern Ukiyo-e style. Emphasize bold, stylized outlines, flat areas of color, and dynamic composition inspired by Japanese woodblock prints. Incorporate the phrase "${phrase}" using artistic, brush-stroke Japanese calligraphy (Shodo) as a key design element.` },
+    { id: 'persian-cyberpunk', title: 'Persian Cyberpunk', description: 'A fusion of traditional Persian art with futuristic, neon aesthetics.', getPrompt: (phrase: string) => `Create a stunning Cyberpunk artwork heavily inspired by Persian miniature art. Blend traditional motifs, patterns, and architectural elements with futuristic neon lighting, cybernetic enhancements, and a high-tech feel. Integrate the phrase "${phrase}" as glowing, holographic Persian script within the scene.` },
+    { id: 'art-nouveau-floral', title: 'Art Nouveau Floral', description: 'Flowing, organic lines and floral motifs in the Art Nouveau style.', getPrompt: (phrase: string) => `Convert the portrait into an elegant Art Nouveau illustration. Use flowing, organic lines, decorative patterns, and floral motifs to frame the subject. The color palette should be harmonious and sophisticated. The phrase "${phrase}" should be lettered in a flowing, decorative Art Nouveau typeface that complements the artwork.` }
+];
+const LOADING_TEXTS = [
+    "Generating your masterpiece...", "Blending cultural aesthetics...", "Inking the calligraphy...",
+    "Applying artistic touches...", "The final reveal is moments away...",
 ];
 
-const PHRASES = [
-  {
-    text: 'دل سے جو بات نکلتی ہے اثر رکھتی ہے',
-    translation: 'Words from the heart have effect',
-  },
-  {
-    text: 'بادشاہی صرف دلوں پر ہوتی ہے',
-    translation: 'True sovereignty is only over hearts',
-  },
-  { text: 'محبت امن ہے', translation: 'Love is peace' },
-  { text: 'پختون ولی', translation: 'The Pashtun code of honor' },
-  {
-    text: 'عشق میں رنگ ہے، روشنی ہے، زندگی ہے',
-    translation: 'In love, there is color, light, and life',
-  },
-];
-
-const LOADING_MESSAGES = [
-  'Brewing artistic magic...',
-  'Weaving cultural threads...',
-  'Inking the calligraphy...',
-  'Consulting the muses...',
-  'Painting with pixels...',
-];
-
-// --- DOM ELEMENT REFERENCES ---
-// Fix for line 218: Cast to HTMLInputElement to access 'value'.
-const imageUpload = document.getElementById('image-upload') as HTMLInputElement;
+// 3. DOM Element References
+const imageUploadInput = document.getElementById('image-upload') as HTMLInputElement;
 const uploadLabel = document.getElementById('upload-label');
-const imagePreviewContainer = document.getElementById(
-  'image-preview-container',
-);
-// Fix for lines 201, 221: Cast to HTMLImageElement to access 'src'.
+const imagePreviewContainer = document.getElementById('image-preview-container');
 const imagePreview = document.getElementById('image-preview') as HTMLImageElement;
-const removeImageBtn = document.getElementById(
-  'remove-image-btn',
-);
-// Fix for line 236: Cast to HTMLSelectElement to access 'value'.
+const removeImageBtn = document.getElementById('remove-image-btn');
+const manualControlsFieldset = document.getElementById('manual-controls-fieldset') as HTMLFieldSetElement;
 const themeSelect = document.getElementById('theme-select') as HTMLSelectElement;
-// Fix for line 237: Cast to HTMLSelectElement to access 'value'.
-const phraseSelect = document.getElementById(
-  'phrase-select',
-) as HTMLSelectElement;
-// Fix for lines 157, 204, 222, 308: Cast to HTMLButtonElement to access 'disabled'.
+const phraseSelect = document.getElementById('phrase-select') as HTMLSelectElement;
+const customPhraseGroup = document.getElementById('custom-phrase-group');
+const customPhraseInput = document.getElementById('custom-phrase-input') as HTMLInputElement;
+const creativePromptsContainer = document.getElementById('creative-prompts-container');
 const generateBtn = document.getElementById('generate-btn') as HTMLButtonElement;
-
-const outputPlaceholder = document.getElementById(
-  'output-placeholder',
-);
-const loadingIndicator = document.getElementById(
-  'loading-indicator',
-);
-const loadingText = document.getElementById('loading-text');
-const resultContainer = document.getElementById(
-  'result-container',
-);
-// Fix for line 176: Cast to HTMLImageElement to access 'src'.
+const outputPlaceholder = document.getElementById('output-placeholder');
+const loadingIndicator = document.getElementById('loading-indicator');
+const loadingTextElement = document.getElementById('loading-text');
+const errorContainer = document.getElementById('error-container');
+const errorMessageElement = document.getElementById('error-message');
+const resultContainer = document.getElementById('result-container');
 const resultImage = document.getElementById('result-image') as HTMLImageElement;
-const resultCaption = document.getElementById(
-  'result-caption',
-);
-const errorContainer = document.getElementById(
-  'error-container',
-);
-const errorMessage = document.getElementById('error-message');
+const resultCaption = document.getElementById('result-caption');
+const downloadBtn = document.getElementById('download-btn');
+const zoomContainer = document.getElementById('zoom-container');
+const resetZoomBtn = document.getElementById('reset-zoom-btn');
+const zoomLevelDisplay = document.getElementById('zoom-level-display');
+const historyItemsContainer = document.getElementById('history-items-container');
+const clearHistoryBtn = document.getElementById('clear-history-btn');
+const exportHistoryBtn = document.getElementById('export-history-btn');
+const importHistoryBtn = document.getElementById('import-history-btn');
+const importHistoryInput = document.getElementById('import-history-input') as HTMLInputElement;
 
-// --- STATE ---
-let uploadedFile = null;
-let loadingInterval;
 
-// --- HELPER FUNCTIONS ---
+// 4. App State
+interface HistoryItem {
+    id: string;
+    imageUrl: string;
+    caption: string;
+}
+let uploadedImageData: { base64: string; mimeType: string } | null = null;
+let isGenerating = false;
+let resultImageURL: string | null = null;
+let loadingInterval: number;
+let selectedCreativePrompt: ((phrase: string) => string) | null = null;
+let generationHistory: HistoryItem[] = [];
+let currentHistoryId: string | null = null;
 
-/**
- * Converts a File object to a base64 string.
- */
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
+
+// --- UI LOGIC ---
+
+/** Populates select dropdowns with data */
+function populateDropdowns() {
+    THEMES.forEach(theme => {
+        const option = document.createElement('option');
+        option.value = theme;
+        option.textContent = theme;
+        themeSelect.appendChild(option);
+    });
+    Object.keys(PHRASES).forEach(phrase => {
+        const option = document.createElement('option');
+        option.value = PHRASES[phrase as keyof typeof PHRASES];
+        option.textContent = phrase;
+        phraseSelect.appendChild(option);
+    });
+}
+
+/** Populates the creative prompts section */
+function populateCreativePrompts() {
+    const customCard = document.createElement('div');
+    customCard.className = 'prompt-card active';
+    customCard.id = 'prompt-card-custom';
+    customCard.innerHTML = `<h4>Custom Setup</h4><p>Use the dropdowns above for a custom style.</p>`;
+    customCard.addEventListener('click', () => {
+        selectedCreativePrompt = null;
+        manualControlsFieldset.disabled = false;
+        document.querySelectorAll('.prompt-card').forEach(c => c.classList.remove('active'));
+        customCard.classList.add('active');
+    });
+    creativePromptsContainer.appendChild(customCard);
+
+    CREATIVE_PROMPTS.forEach(prompt => {
+        const card = document.createElement('div');
+        card.className = 'prompt-card';
+        card.id = `prompt-card-${prompt.id}`;
+        card.innerHTML = `<h4>${prompt.title}</h4><p>${prompt.description}</p>`;
+        card.addEventListener('click', () => {
+            selectedCreativePrompt = prompt.getPrompt;
+            manualControlsFieldset.disabled = true;
+            document.querySelectorAll('.prompt-card').forEach(c => c.classList.remove('active'));
+            card.classList.add('active');
+        });
+        creativePromptsContainer.appendChild(card);
+    });
+}
+
+/** Handles file selection from upload input or drag-and-drop */
+function handleFileSelect(file: File) {
+    if (!file || !file.type.startsWith('image/')) {
+        alert('Please select an image file.');
+        return;
+    }
     const reader = new FileReader();
     reader.onload = () => {
-      // Fix for line 116: Property 'split' does not exist on type 'string | ArrayBuffer'.
-      // Also corrects the logic to properly parse the MIME type from the data URL.
-      const result = reader.result as string;
-      const [header, data] = result.split(';base64,');
-      const mimeType = header.split(':')[1];
-      resolve({ mimeType, data });
+        const base64String = (reader.result as string).split(',')[1];
+        uploadedImageData = { base64: base64String, mimeType: file.type };
+        imagePreview.src = `data:${file.type};base64,${base64String}`;
+        uploadLabel!.style.display = 'none';
+        imagePreviewContainer!.style.display = 'block';
+        validateForm();
     };
-    reader.onerror = (error) => reject(error);
     reader.readAsDataURL(file);
-  });
 }
 
-/**
- * Populates the theme and phrase select dropdowns.
- */
-function populateSelects() {
-  THEMES.forEach((theme) => {
-    const option = document.createElement('option');
-    option.value = theme.name;
-    option.textContent = theme.name;
-    themeSelect.appendChild(option);
-  });
-
-  PHRASES.forEach((phrase) => {
-    const option = document.createElement('option');
-    option.value = phrase.text;
-    option.textContent = `${phrase.text} (${phrase.translation})`;
-    phraseSelect.appendChild(option);
-  });
-}
-
-/**
- * Manages the visibility of different output panel states.
- */
-function showOutputState(state) {
-  outputPlaceholder.style.display = state === 'placeholder' ? 'block' : 'none';
-  loadingIndicator.style.display = state === 'loading' ? 'block' : 'none';
-  resultContainer.style.display = state === 'result' ? 'flex' : 'none';
-  errorContainer.style.display = state === 'error' ? 'block' : 'none';
-}
-
-/**
- * Sets the loading state of the UI.
- */
-function setLoadingState(isLoading) {
-  generateBtn.disabled = isLoading;
-  if (isLoading) {
-    showOutputState('loading');
-    let messageIndex = 0;
-    loadingText.textContent = LOADING_MESSAGES[messageIndex];
-    loadingInterval = window.setInterval(() => {
-      messageIndex = (messageIndex + 1) % LOADING_MESSAGES.length;
-      loadingText.textContent = LOADING_MESSAGES[messageIndex];
-    }, 3000);
-  } else {
-    clearInterval(loadingInterval);
-    showOutputState('placeholder');
-  }
-}
-
-/**
- * Displays the generated artwork and caption.
- */
-function displayResult(imageUrl, caption) {
-  resultImage.src = imageUrl;
-  resultCaption.textContent = caption;
-  showOutputState('result');
-}
-
-/**
- * Displays an error message.
- */
-function displayError(message) {
-  errorMessage.textContent = message;
-  showOutputState('error');
-}
-
-// --- EVENT HANDLERS ---
-
-/**
- * Handles the file upload event.
- */
-async function handleImageUpload(event) {
-  const target = event.target as HTMLInputElement;
-  const file = target.files?.[0];
-
-  if (file) {
-    try {
-      uploadedFile = await fileToBase64(file);
-      imagePreview.src = `data:${uploadedFile.mimeType};base64,${uploadedFile.data}`;
-      uploadLabel.style.display = 'none';
-      imagePreviewContainer.style.display = 'block';
-      generateBtn.disabled = false;
-    } catch (error) {
-      console.error('Error reading file:', error);
-      displayError('Could not load image. Please try another file.');
-      uploadedFile = null;
-    }
-  }
-}
-
-/**
- * Resets the image upload state.
- */
+/** Removes the uploaded image and resets the UI */
 function removeImage() {
-  uploadedFile = null;
-  imageUpload.value = ''; // Reset file input
-  uploadLabel.style.display = 'flex';
-  imagePreviewContainer.style.display = 'none';
-  imagePreview.src = '#';
-  generateBtn.disabled = true;
+    uploadedImageData = null;
+    imageUploadInput.value = '';
+    uploadLabel!.style.display = 'flex';
+    imagePreviewContainer!.style.display = 'none';
+    imagePreview.src = '#';
+    validateForm();
 }
 
-/**
- * Main function to generate artwork via the Gemini API.
- */
-async function generateArtwork(ai) {
-  if (!uploadedFile) {
-    displayError('Please upload a portrait first.');
-    return;
-  }
+/** Checks if the form is valid to enable the generate button */
+function validateForm() {
+    generateBtn.disabled = !uploadedImageData || isGenerating;
+}
 
-  setLoadingState(true);
-
-  const selectedThemeName = themeSelect.value;
-  const selectedPhraseText = phraseSelect.value;
-
-  const selectedTheme = THEMES.find((t) => t.name === selectedThemeName);
-
-  if (!selectedTheme) {
-    displayError('Invalid theme selected.');
-    setLoadingState(false);
-    return;
-  }
-
-  const prompt = `
-    You are an advanced image generation model. Your task is to transform the user-uploaded portrait into a culturally inspired artwork that blends South Asian and Middle Eastern aesthetics with elegant calligraphy.
-
-    Instructions:
-    1. Apply a visual style based on the selected cultural theme:
-      - ${selectedTheme.name}: ${selectedTheme.description}
-
-    2. Overlay Urdu or regional calligraphy in an appropriate script (e.g., Nastaliq, Shekasteh, or Diwani) using the following poetic or spiritual phrase:
-      - "${selectedPhraseText}"
-
-    3. Use elegant lighting, soft textures, and traditional motifs to evoke heritage, identity, and emotional depth.
-
-    Output format:
-    Return a high-resolution image with the transformed portrait, calligraphy overlay, and cultural styling.
-    Also, return a short caption describing the selected theme and your artistic interpretation (e.g., "A portrait transformed with Sindhi serenity..." or "Pashtun pride embodied...").
-  `;
-
-  try {
-    const imagePart = {
-      inlineData: {
-        mimeType: uploadedFile.mimeType,
-        data: uploadedFile.data,
-      },
-    };
-
-    const textPart = {
-      text: prompt,
-    };
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image-preview',
-      contents: { parts: [imagePart, textPart] },
-      config: {
-        responseModalities: [Modality.IMAGE, Modality.TEXT],
-      },
-    });
-
-    let imageUrl = '';
-    let caption = 'Artwork generated successfully.';
-
-    for (const part of response.candidates[0].content.parts) {
-      if (part.text) {
-        caption = part.text;
-      } else if (part.inlineData) {
-        const base64ImageBytes = part.inlineData.data;
-        imageUrl = `data:${part.inlineData.mimeType};base64,${base64ImageBytes}`;
-      }
-    }
-
-    if (imageUrl) {
-      displayResult(imageUrl, caption);
+/** Updates the UI to show one of the panels: placeholder, loading, result, error */
+function setOutputState(state: 'placeholder' | 'loading' | 'result' | 'error') {
+    outputPlaceholder!.style.display = state === 'placeholder' ? 'block' : 'none';
+    loadingIndicator!.style.display = state === 'loading' ? 'block' : 'none';
+    resultContainer!.style.display = state === 'result' ? 'flex' : 'none';
+    errorContainer!.style.display = state === 'error' ? 'block' : 'none';
+    if (state === 'loading') {
+        let i = 0;
+        loadingTextElement!.textContent = LOADING_TEXTS[i];
+        loadingInterval = window.setInterval(() => {
+            i = (i + 1) % LOADING_TEXTS.length;
+            loadingTextElement!.textContent = LOADING_TEXTS[i];
+        }, 3000);
     } else {
-      displayError('The model did not return an image. Please try again.');
+        clearInterval(loadingInterval);
     }
-  } catch (error) {
-    console.error('API Error:', error);
-    displayError(
-      `An error occurred while generating the artwork. ${error instanceof Error ? error.message : ''}`,
-    );
-  } finally {
-    setLoadingState(false);
-    generateBtn.disabled = false;
-  }
+}
+
+/** Downloads the generated image */
+function downloadImage() {
+    if (!resultImageURL) return;
+    const a = document.createElement('a');
+    a.href = resultImageURL;
+    a.download = 'cultural-portrait.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+// --- ZOOM & PAN LOGIC ---
+let scale = 1, panning = false, pointX = 0, pointY = 0, start = { x: 0, y: 0 };
+function updateZoomDisplay() { zoomLevelDisplay!.textContent = `${Math.round(scale * 100)}%`; }
+function setTransform() { resultImage.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`; }
+function setupZoomAndPan() {
+    updateZoomDisplay();
+    zoomContainer!.onmousedown = (e) => { e.preventDefault(); start = { x: e.clientX - pointX, y: e.clientY - pointY }; panning = true; zoomContainer!.style.cursor = 'grabbing'; };
+    zoomContainer!.onmouseup = () => { panning = false; zoomContainer!.style.cursor = 'grab'; };
+    zoomContainer!.onmouseleave = () => { panning = false; zoomContainer!.style.cursor = 'grab'; };
+    zoomContainer!.onmousemove = (e) => { if (!panning) return; pointX = (e.clientX - start.x); pointY = (e.clientY - start.y); setTransform(); };
+    zoomContainer!.onwheel = (e) => {
+        e.preventDefault();
+        const rect = zoomContainer!.getBoundingClientRect();
+        const xs = (e.clientX - rect.left - pointX) / scale;
+        const ys = (e.clientY - rect.top - pointY) / scale;
+        const delta = -e.deltaY;
+        scale = Math.min(Math.max(0.25, scale * Math.pow(1.001, delta)), 4);
+        pointX = e.clientX - rect.left - xs * scale;
+        pointY = e.clientY - rect.top - ys * scale;
+        setTransform();
+        updateZoomDisplay();
+    };
+    resetZoomBtn!.onclick = () => { scale = 1; pointX = 0; pointY = 0; setTransform(); updateZoomDisplay(); };
+}
+
+// --- HISTORY LOGIC ---
+function renderHistory() {
+    historyItemsContainer!.innerHTML = '';
+    if (generationHistory.length === 0) {
+        historyItemsContainer!.innerHTML = `<p class="placeholder-text">Your generated images will appear here.</p>`;
+        return;
+    }
+    generationHistory.forEach(item => {
+        const historyItemEl = document.createElement('div');
+        historyItemEl.className = 'history-item';
+        historyItemEl.dataset.id = item.id;
+        if (item.id === currentHistoryId) {
+            historyItemEl.classList.add('active');
+        }
+        historyItemEl.innerHTML = `
+            <img src="${item.imageUrl}" alt="History thumbnail" class="history-item-thumbnail">
+            <div class="history-item-info">
+                <p>${item.caption.substring(0, 50)}${item.caption.length > 50 ? '...' : ''}</p>
+            </div>
+        `;
+        historyItemEl.addEventListener('click', () => loadFromHistory(item.id));
+        historyItemsContainer!.appendChild(historyItemEl);
+    });
+}
+
+function loadFromHistory(id: string) {
+    const item = generationHistory.find(h => h.id === id);
+    if (!item) return;
+    currentHistoryId = id;
+    resultImageURL = item.imageUrl;
+    resultImage.src = resultImageURL;
+    resultCaption.textContent = item.caption;
+    setOutputState('result');
+    // Highlight the active item
+    document.querySelectorAll('.history-item').forEach(el => {
+        el.classList.toggle('active', (el as HTMLElement).dataset.id === id);
+    });
+}
+
+function addToHistory(imageUrl: string, caption: string) {
+    const id = `hist-${Date.now()}`;
+    const newItem: HistoryItem = { id, imageUrl, caption };
+    currentHistoryId = id;
+    generationHistory.unshift(newItem); // Add to the beginning
+    if (generationHistory.length > 20) {
+        generationHistory.pop(); // Limit history size
+    }
+    saveHistoryToLocalStorage();
+    renderHistory();
+}
+
+function saveHistoryToLocalStorage() {
+    localStorage.setItem('generationHistory', JSON.stringify(generationHistory));
+}
+
+function loadHistoryFromLocalStorage() {
+    const savedHistory = localStorage.getItem('generationHistory');
+    if (savedHistory) {
+        generationHistory = JSON.parse(savedHistory);
+    }
+    renderHistory();
+}
+
+function clearHistory() {
+    if (confirm('Are you sure you want to clear your entire generation history?')) {
+        generationHistory = [];
+        currentHistoryId = null;
+        saveHistoryToLocalStorage();
+        renderHistory();
+    }
+}
+
+function exportHistory() {
+    if (generationHistory.length === 0) {
+        alert('History is empty. Nothing to export.');
+        return;
+    }
+    const jsonString = JSON.stringify(generationHistory, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `cultural-portrait-history-backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function importHistory() {
+    importHistoryInput.click();
+}
+
+function handleHistoryFileSelected(file: File) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        try {
+            const importedData = JSON.parse(event.target!.result as string);
+            if (!Array.isArray(importedData) || (importedData.length > 0 && (!importedData[0].id || !importedData[0].imageUrl || !importedData[0].caption))) {
+                throw new Error('Invalid history file format.');
+            }
+            
+            if (confirm('Merge imported history with your current history? Duplicates will be ignored.')) {
+                const existingIds = new Set(generationHistory.map(item => item.id));
+                const newItems = importedData.filter((item: HistoryItem) => !existingIds.has(item.id));
+                
+                if(newItems.length === 0) {
+                    alert('No new items to import. All items in the file already exist in your history.');
+                    return;
+                }
+
+                generationHistory = [...newItems, ...generationHistory];
+                if (generationHistory.length > 20) {
+                    generationHistory = generationHistory.slice(0, 20); // Re-apply limit
+                }
+                
+                saveHistoryToLocalStorage();
+                renderHistory();
+                alert(`Successfully imported ${newItems.length} new items.`);
+            }
+
+        } catch (error) {
+            alert('Failed to import history. Please make sure you are selecting a valid backup file.');
+            console.error('History Import Error:', error);
+        } finally {
+            importHistoryInput.value = ''; // Reset input to allow re-importing the same file
+        }
+    };
+    reader.readAsText(file);
+}
+
+
+// --- GEMINI API LOGIC ---
+function handleGenerationError(error: any) {
+    console.error("Artwork Generation Error:", error);
+    let userMessage = 'An unexpected error occurred. Please refresh and try again.';
+    if (error instanceof TypeError && error.message.toLowerCase().includes('fetch')) {
+        userMessage = 'A network error occurred. Please check your internet connection and try again.';
+    } else if (error && typeof error.message === 'string') {
+        const message = error.message.toLowerCase();
+        if (message.startsWith('api did not return an image')) {
+            userMessage = error.message;
+        } else if (message.includes('api key') || message.includes('permission denied')) {
+            userMessage = 'There is an API configuration issue. Please contact the administrator.';
+        } else if (message.includes('invalid argument')) {
+            userMessage = 'The request was invalid. This might be due to an issue with the uploaded image. Please try a different one.';
+        } else if (message.includes('resource has been exhausted') || message.includes('quota')) {
+            userMessage = 'The service is currently at capacity. Please try again in a few moments.';
+        } else {
+            userMessage = error.message;
+        }
+    }
+    errorMessageElement!.textContent = userMessage;
+    setOutputState('error');
+}
+
+async function generateArtwork() {
+    if (!uploadedImageData) { alert("Please upload a portrait first."); return; }
+    isGenerating = true;
+    validateForm();
+    setOutputState('loading');
+    try {
+        let phrase = phraseSelect.value === 'custom' ? customPhraseInput.value : phraseSelect.value;
+        if (!phrase) throw new Error("Please select or enter a calligraphy phrase.");
+
+        let prompt: string;
+        let themeForCaption: string;
+        if (selectedCreativePrompt) {
+            prompt = selectedCreativePrompt(phrase);
+            const activePromptCard = document.querySelector('.prompt-card.active');
+            themeForCaption = activePromptCard!.querySelector('h4')!.textContent!;
+        } else {
+            const theme = themeSelect.value;
+            themeForCaption = theme;
+            prompt = `Transform the provided portrait into a masterpiece with a ${theme} aesthetic. The style should be an artistic fusion, blending traditional patterns, colors, and motifs from that culture with the person's features. Please incorporate elegant, artistic calligraphy of the phrase "${phrase}" into the composition. The calligraphy should not obscure the face but rather complement it, perhaps woven into the background, attire, or as a decorative element. The final image should be a beautiful, culturally-inspired piece of art.`;
+        }
+        
+        const imagePart: Part = { inlineData: { data: uploadedImageData.base64, mimeType: uploadedImageData.mimeType } };
+        const textPart: Part = { text: prompt };
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash-image-preview',
+            contents: { parts: [imagePart, textPart] },
+            config: { responseModalities: [Modality.IMAGE, Modality.TEXT] },
+        });
+
+        const content = response.candidates?.[0]?.content;
+        if (!content || !content.parts) throw new Error("Invalid response from the API.");
+
+        const imagePartResponse = content.parts.find(p => p.inlineData);
+        const textPartResponse = content.parts.find(p => p.text);
+        
+        if (!imagePartResponse || !imagePartResponse.inlineData) {
+            throw new Error("API did not return an image. " + (textPartResponse?.text || "No additional details provided."));
+        }
+        
+        const mimeType = imagePartResponse.inlineData.mimeType;
+        const base64Data = imagePartResponse.inlineData.data;
+        const captionText = textPartResponse?.text || `An artistic rendering in the ${themeForCaption} style.`;
+
+        resultImageURL = `data:${mimeType};base64,${base64Data}`;
+        resultImage.src = resultImageURL;
+        resultCaption.textContent = captionText;
+
+        setOutputState('result');
+        addToHistory(resultImageURL, captionText);
+
+    } catch (error: any) {
+        handleGenerationError(error);
+    } finally {
+        isGenerating = false;
+        validateForm();
+    }
 }
 
 // --- INITIALIZATION ---
-function main() {
-  // NOTE: Replace "YOUR_API_KEY_HERE" with your actual Google Gemini API key.
-  const apiKey = "YOUR_API_KEY_HERE";
-  
-  if (apiKey === "YOUR_API_KEY_HERE") {
-    displayError(
-      'API key is not configured. Please replace "YOUR_API_KEY_HERE" in index.tsx with your actual API key.',
-    );
-    return;
-  }
-  const ai = new GoogleGenAI({ apiKey: apiKey });
+function initializeApp() {
+    populateDropdowns();
+    populateCreativePrompts();
+    loadHistoryFromLocalStorage();
 
-  populateSelects();
-
-  imageUpload.addEventListener('change', handleImageUpload);
-  removeImageBtn.addEventListener('click', removeImage);
-  generateBtn.addEventListener('click', () => generateArtwork(ai));
+    // Event Listeners
+    imageUploadInput.addEventListener('change', () => handleFileSelect(imageUploadInput.files![0]));
+    uploadLabel!.addEventListener('dragover', (e) => { e.preventDefault(); uploadLabel!.classList.add('dragover'); });
+    uploadLabel!.addEventListener('dragleave', () => uploadLabel!.classList.remove('dragover'));
+    uploadLabel!.addEventListener('drop', (e) => { e.preventDefault(); uploadLabel!.classList.remove('dragover'); handleFileSelect(e.dataTransfer!.files[0]); });
+    removeImageBtn!.addEventListener('click', removeImage);
+    phraseSelect.addEventListener('change', () => { customPhraseGroup!.style.display = phraseSelect.value === 'custom' ? 'block' : 'none'; });
+    generateBtn.addEventListener('click', generateArtwork);
+    downloadBtn!.addEventListener('click', downloadImage);
+    clearHistoryBtn!.addEventListener('click', clearHistory);
+    exportHistoryBtn!.addEventListener('click', exportHistory);
+    importHistoryBtn!.addEventListener('click', importHistory);
+    importHistoryInput.addEventListener('change', () => handleHistoryFileSelected(importHistoryInput.files![0]));
+    
+    setupZoomAndPan();
+    setOutputState('placeholder');
+    validateForm();
 }
 
-main();
-const apiKey = "AIzaSyDax1zB9X_wXMOEAbgY_VKdpOReOGQMm4g";
+initializeApp();
