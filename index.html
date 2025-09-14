@@ -6,12 +6,14 @@
     <title>Cultural Portrait Fusion</title>
     <link rel="stylesheet" href="index.css" />
     <script type="importmap">
-      {
-        "imports": {
-          "@google/genai": "https://esm.run/@google/genai"
-        }
-      }
-    </script>
+{
+  "imports": {
+    "@google/genai": "https://esm.run/@google/genai",
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "react": "https://aistudiocdn.com/react@^19.1.1"
+  }
+}
+</script>
   </head>
   <body>
     <header class="app-header">
@@ -54,22 +56,41 @@
           </div>
         </div>
 
-        <div class="form-group">
-          <label for="theme-select">Cultural Theme</label>
-          <div class="select-wrapper">
-            <select id="theme-select" aria-label="Select a cultural theme"></select>
+        <fieldset id="manual-controls-fieldset">
+          <div class="form-group">
+            <label for="theme-select">Cultural Theme</label>
+            <div class="select-wrapper">
+              <select id="theme-select" aria-label="Select a cultural theme"></select>
+            </div>
           </div>
+
+          <div class="form-group">
+            <label for="phrase-select">Calligraphy Phrase</label>
+            <div class="select-wrapper">
+              <select
+                id="phrase-select"
+                aria-label="Select a calligraphy phrase"
+              ></select>
+            </div>
+          </div>
+
+          <div class="form-group" id="custom-phrase-group" style="display: none">
+            <label for="custom-phrase-input">Custom Phrase</label>
+            <input
+              type="text"
+              id="custom-phrase-input"
+              placeholder="Enter your phrase here..."
+            />
+          </div>
+        </fieldset>
+        
+        <div class="form-group">
+            <label>Creative Prompts (Optional)</label>
+            <div id="creative-prompts-container" class="prompts-container">
+                <!-- Predefined prompt cards will be injected here by JS -->
+            </div>
         </div>
 
-        <div class="form-group">
-          <label for="phrase-select">Calligraphy Phrase</label>
-          <div class="select-wrapper">
-            <select
-              id="phrase-select"
-              aria-label="Select a calligraphy phrase"
-            ></select>
-          </div>
-        </div>
 
         <button id="generate-btn" disabled>
           <i class="fa-solid fa-wand-magic-sparkles"></i>
@@ -78,6 +99,84 @@
       </div>
 
       <div class="output-panel" aria-live="polite">
+        <div id="output-placeholder" class="output-placeholder">
+          <i class="fa-solid fa-palette"></i>
+          <p>Your generated artwork will appear here</p>
+        </div>
+        <div
+          id="loading-indicator"
+          class="loading-indicator"
+          style="display: none"
+          role="status"
+        >
+          <div class="spinner"></div>
+          <p id="loading-text">Generating your masterpiece...</p>
+        </div>
+        <figure
+          id="result-container"
+          class="result-container"
+          style="display: none"
+        >
+          <div id="zoom-container" class="zoom-container">
+            <img id="result-image" src="" alt="Generated artwork" />
+          </div>
+          <div class="result-controls">
+            <figcaption id="result-caption" class="caption"></figcaption>
+            <div class="zoom-controls">
+              <button
+                id="reset-zoom-btn"
+                class="tertiary-btn"
+                title="Reset Zoom"
+              >
+                <i class="fa-solid fa-arrows-rotate"></i>
+              </button>
+              <span id="zoom-level-display">100%</span>
+            </div>
+            <button
+              id="download-btn"
+              class="secondary-btn"
+              title="Download Artwork"
+            >
+              <i class="fa-solid fa-download"></i> Download
+            </button>
+          </div>
+        </figure>
+        <div
+          id="error-container"
+          class="error-container"
+          style="display: none"
+          role="alert"
+        >
+          <i class="fa-solid fa-circle-exclamation"></i>
+          <p id="error-message"></p>
+        </div>
+      </div>
+
+      <div class="history-panel" aria-labelledby="history-heading">
+        <div class="history-header">
+          <h2 id="history-heading">History</h2>
+          <div class="history-actions">
+            <button id="import-history-btn" class="tertiary-btn" title="Import History">
+                <i class="fa-solid fa-file-import"></i>
+            </button>
+            <button id="export-history-btn" class="tertiary-btn" title="Export History">
+                <i class="fa-solid fa-file-export"></i>
+            </button>
+            <button id="clear-history-btn" class="tertiary-btn" title="Clear History">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+        </div>
+        <div id="history-items-container">
+          <!-- History items will be injected here -->
+        </div>
+        <input type="file" id="import-history-input" accept="application/json" hidden/>
+      </div>
+    </main>
+
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>      <div class="output-panel" aria-live="polite">
         <div id="output-placeholder" class="output-placeholder">
           <i class="fa-solid fa-palette"></i>
           <p>Your generated artwork will appear here</p>
